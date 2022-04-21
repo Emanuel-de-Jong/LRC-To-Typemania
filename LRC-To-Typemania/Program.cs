@@ -15,10 +15,15 @@ namespace LRC_To_Typemania
 
         static void Main(string[] args)
         {
-            new Program();
+            new Program(args);
+
+            //OsuFile osuFile = OsuFile.ReadFromFileAsync(
+            //    @"E:\Media\Downloads\982816 Hisui Chazuke - Bomb Bang Bound!!!\Hisui Chazuke - Bomb Bang Bound!!! (qodtjr) [BBB!!!].osu"
+            //    ).Result;
+            //Console.ReadKey();
         }
 
-        public Program()
+        public Program(string[] args)
         {
             cols.Add('q', 0);
             cols.Add('a', 20);
@@ -51,35 +56,50 @@ namespace LRC_To_Typemania
             MetadataSection metadata = osuFile.Metadata;
             HitObjectSection hitObjects = osuFile.HitObjects;
 
+            osuFile.General.Mode = Coosu.Beatmap.Sections.GamePlay.GameMode.Mania;
+            osuFile.Difficulty.CircleSize = 26;
+
+            TimingPoint baseTimingPoint = new TimingPoint();
+            baseTimingPoint.Factor = 1000;
+            baseTimingPoint.Rhythm = 4;
+            osuFile.TimingPoints.TimingList.Add(baseTimingPoint);
+
             metadata.Creator = "KillBottt";
             metadata.Version = "Normal";
 
-            foreach (string line in File.ReadLines(@"E:\Media\Downloads\Alan Walker - The Spectre - Advance (English).lrc"))
+            string lrcPath = args.Length > 0 ? args[0] : @"E:\Media\Downloads\Sia - Unstoppable.lrc";
+            foreach (string line in File.ReadLines(lrcPath))
             {
                 if (line.Length >= 11 && int.TryParse(line.Substring(1, 2), out int _))
                 {
                     string[] lineParts = line.Split(']');
                     lineParts[0] = lineParts[0][1..];
-                    DateTime time = DateTime.ParseExact(lineParts[0], "mm:ss.ff", null);
                     TimeSpan timeSpan = TimeSpan.ParseExact(lineParts[0], @"mm\:ss\.ff", null);
 
                     StringBuilder sb = new StringBuilder();
                     foreach (char c in lineParts[1])
                     {
-                        if (cols.Keys.Contains(c))
+                        char lowerC = Char.ToLower(c);
+
+                        if (cols.Keys.Contains(lowerC))
                         {
-                            sb.Append(c);
+                            sb.Append(lowerC);
                         }
                     }
+
+                    int time = (int)timeSpan.TotalMilliseconds;
 
                     foreach (char c in sb.ToString())
                     {
                         RawHitObject hitObject = new RawHitObject();
                         hitObject.Y = 192;
-                        hitObject.X = 486; // TODO
-                        hitObject.Offset = (int) timeSpan.TotalMilliseconds;
+                        hitObject.X = cols[c];
+                        hitObject.Offset = time;
+                        hitObject.RawType = RawObjectType.Circle;
 
                         hitObjects.HitObjectList.Add(hitObject);
+
+                        time += 50;
                     }
                 }
                 else if (line.Contains("ar:"))
@@ -95,6 +115,8 @@ namespace LRC_To_Typemania
                     metadata.Source = RemoveBrackets(line).Replace("al:", "").Trim();
                 }
             }
+
+            osuFile.WriteOsuFile(@"E:\Media\Downloads\test\test.osu");
         }
 
         string RemoveBrackets(string line)
